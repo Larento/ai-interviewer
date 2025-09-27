@@ -1,0 +1,12 @@
+*
+
+# uv stuff
+!.python-version
+!pyproject.toml
+!uv.lock
+
+# Docs
+!README.md
+
+# Source code
+!src
