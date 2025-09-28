@@ -1,0 +1,56 @@
+name: Deploy Agent to LiveKit Cloud
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build and Deploy Agent
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Log in to GitHub Container Registry
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      # 3. Build Docker image
+      - name: Build Docker image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository }}/agent-service:latest
+          docker build -t $IMAGE_NAME .
+
+      # 4. Push Docker image to GHCR
+      - name: Push Docker image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository }}/agent-service:latest
+          docker push $IMAGE_NAME
+
+      # 5. Deploy to LiveKit Cloud
+      - name: Deploy to LiveKit Cloud
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository }}/agent-service:latest
+
+          curl -X POST https://cloud.livekit.io/v1/agents/deploy \
+            -u "${{ secrets.LIVEKIT_API_KEY }}:${{ secrets.LIVEKIT_API_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "image": "'$IMAGE_NAME'",
+              "name": "agent-service",
+              "env": {
+                "NODE_ENV": "production"
+              },
+              "resources": {
+                "cpu": "500m",
+                "memory": "512Mi"
+              }
+            }'
